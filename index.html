@@ -44,7 +44,7 @@ function def(){const ex=(n,w,r,iso,u)=>({id:uid(),name:n,orm:+e1(w,r).toFixed(1)
 return{start:new Date().toISOString().slice(0,10),week:1,days:['Pecs','Dos','Épaules','Bras','Jambes'],ex:[ex('Développé couché barre',100,4),ex('Développé incliné barre',70,7),ex('Presse inclinée guidée (machine)',109,10,0,'(aussi 4×16 à 86 kg)'),ex('Développé couché haltères',37.5,7,0,'kg/main'),ex('Écarté poulie vis-à-vis',20,10,1,'kg/côté'),ex('Pec deck',67.5,8,1)],log:[]}}
 let S=JSON.parse(localStorage.getItem(K)||'null')||def(),D=0,V='day',W={};
 S.log=S.log||[];
-const MIG={2:[['Tirage assis poulie prise serrée',80,10,0,'Dos'],['Tirage assis poulie prise moyenne',75,10,0,'Dos'],['Tirage assis poulie prise large',70,10,0,'Dos']]};
+const MIG={2:[['Tirage assis poulie prise serrée',80,10,0,'Dos'],['Tirage assis poulie prise moyenne',75,10,0,'Dos'],['Tirage assis poulie prise large',70,10,0,'Dos']],3:[['Tirage vertical prise serrée',70,8,0,'Dos'],['Tirage vertical prise large',70,8,0,'Dos']]};
 function migrate(){const v=S.dv||1;Object.keys(MIG).map(Number).sort().forEach(n=>{if(n<=v)return;MIG[n].forEach(([nm,w,r,iso,dn])=>{if(S.ex.some(e=>e.name==nm))return;let d=S.days.indexOf(dn);if(d<0)d=1;S.ex.push({id:uid(),name:nm,orm:+e1(w,r).toFixed(1),iso,unit:'',day:d,bonus:0})})});S.dv=Math.max(v,...Object.keys(MIG).map(Number));localStorage.setItem(K,JSON.stringify(S))}
 migrate();S.ex.forEach(e=>{e.bonus=e.bonus||0;e.unit=e.unit||''});
 const sv=()=>localStorage.setItem(K,JSON.stringify(S));
