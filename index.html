@@ -40,25 +40,39 @@ nav.tabs{position:fixed;bottom:0;left:0;right:0;display:flex;background:rgba(21,
 <nav class="tabs"><button class="tab" data-v="day"><i>🏋️</i>Séance</button><button class="tab" data-v="hist"><i>📋</i>Historique</button><button class="tab" data-v="prog"><i>📈</i>Progression</button><button class="tab" data-v="set"><i>⚙️</i>Réglages</button></nav>
 <script>
 const K='muscu_v1',r25=x=>Math.round(x/2.5)*2.5,e1=(w,r)=>w*(1+r/30),uid=()=>Math.random().toString(36).slice(2);
-function def(){const ex=(n,w,r,iso,u)=>({id:uid(),name:n,orm:+e1(w,r).toFixed(1),iso,unit:u||'',day:0,bonus:0});
+function def(){const ex=(n,w,r,iso,u)=>({id:uid(),name:n,orm:+e1(w,r).toFixed(1),iso,unit:u||'',day:0});
 return{start:new Date().toISOString().slice(0,10),week:1,days:['Pecs','Dos','Épaules','Bras','Jambes'],ex:[ex('Développé couché barre',100,4),ex('Développé incliné barre',70,7),ex('Presse inclinée guidée (machine)',109,10,0,'(aussi 4×16 à 86 kg)'),ex('Développé couché haltères',37.5,7,0,'kg/main'),ex('Écarté poulie vis-à-vis',20,10,1,'kg/côté'),ex('Pec deck',67.5,8,1)],log:[]}}
 let S=JSON.parse(localStorage.getItem(K)||'null')||def(),D=0,V='day',W={};
 S.log=S.log||[];
-const MIG={2:[['Tirage assis poulie prise serrée',80,10,0,'Dos'],['Tirage assis poulie prise moyenne',75,10,0,'Dos'],['Tirage assis poulie prise large',70,10,0,'Dos']],3:[['Tirage vertical prise serrée',70,8,0,'Dos'],['Tirage vertical prise large',70,8,0,'Dos']],4:[['Rowing assis machine (appui pectoral)',86,9,0,'Dos']]};
+const MIG={2:[['Tirage assis poulie prise serrée',80,10,0,'Dos'],['Tirage assis poulie prise moyenne',75,10,0,'Dos'],['Tirage assis poulie prise large',70,10,0,'Dos']],3:[['Tirage vertical prise serrée',70,8,0,'Dos'],['Tirage vertical prise large',70,8,0,'Dos']],4:[['Rowing assis machine (appui pectoral)',86,9,0,'Dos']],5:[]};
 function migrate(){const v=S.dv||1;Object.keys(MIG).map(Number).sort().forEach(n=>{if(n<=v)return;MIG[n].forEach(([nm,w,r,iso,dn])=>{if(S.ex.some(e=>e.name==nm))return;let d=S.days.indexOf(dn);if(d<0)d=1;S.ex.push({id:uid(),name:nm,orm:+e1(w,r).toFixed(1),iso,unit:'',day:d,bonus:0})})});S.dv=Math.max(v,...Object.keys(MIG).map(Number));localStorage.setItem(K,JSON.stringify(S))}
-migrate();S.ex.forEach(e=>{e.bonus=e.bonus||0;e.unit=e.unit||''});
+function guessLt(n){return /machine|poulie|pec deck|tirage|rowing|presse/i.test(n)?'machine':/halt[eè]re/i.test(n)?'halt':'barre'}
+function norm(e){if(!e.lt){e.lt=guessLt(e.name);e.pre=e.lt=='machine'?'m45':'';e.wstep=2.5;e.vals=e.vals||'';e.bump=e.bonus>0?1:0;e.plus=0;delete e.bonus}e.bump=e.bump||0;e.plus=e.plus||0;e.unit=e.unit||''}
+const _mig=migrate;migrate=function(){const v=S.dv||1;_mig();if(v<5)S.ex.forEach(norm);S.ex.forEach(norm);localStorage.setItem(K,JSON.stringify(S))};
+migrate();
+const PRE={m45:'Matrix 4,5 kg (+1,1/2,3/3,4 appoint)',p25:'Pas 2,5 kg',p5:'Pas 5 kg',cus:'Personnalisé'};
+const LC={};function avail(e){const key=[e.lt,e.pre,e.wstep,e.vals].join('|');if(LC[key])return LC[key];let a=[];
+if(e.lt=='machine'){if(e.pre=='m45'){for(let n=1;n<=25;n++)for(const x of [0,1.1,2.3,3.4])a.push(+(4.5*n+x).toFixed(1))}
+else if(e.pre=='p5')for(let x=5;x<=300;x+=5)a.push(x);else if(e.pre=='cus')a=String(e.vals).split(/[;, ]+/).map(Number).filter(x=>x>0);
+if(!a.length)for(let x=2.5;x<=300;x+=2.5)a.push(+x.toFixed(1))}else{const st=+e.wstep||2.5;for(let x=st;x<=400;x+=st)a.push(+x.toFixed(2))}
+a=[...new Set(a)].sort((x,y)=>x-y);return LC[key]=a}
+function snap(e,x){const a=avail(e);let i=0;for(let j=0;j<a.length;j++)if(a[j]<=x+1e-9)i=j;return i}
+function idxOf(e,w){const a=avail(e);let b=0;a.forEach((v,j)=>{if(Math.abs(v-w)<Math.abs(a[b]-w))b=j});return b}
 const sv=()=>localStorage.setItem(K,JSON.stringify(S));
 const phase=w=>((w-1)%3)<2?'H':'F';
-function presc(e,w){w=w||S.week;if(phase(w)==='F')return{sets:4,lo:3,hi:5,load:r25(e.orm*.86+e.bonus)};
-return e.iso?{sets:3,lo:12,hi:15,load:r25(e.orm*.65+e.bonus)}:{sets:4,lo:10,hi:12,load:r25(e.orm*.72+e.bonus)}}
+function base(e,w){w=w||S.week;return phase(w)==='F'?{sets:4,lo:3,hi:5,pct:.86}:e.iso?{sets:3,lo:12,hi:15,pct:.65}:{sets:4,lo:10,hi:12,pct:.72}}
+function presc(e,w){const b=base(e,w),a=avail(e),i=Math.min(a.length-1,snap(e,e.orm*b.pct)+(e.bump||0)),pl=phase(w||S.week)=='F'?0:(e.plus||0);
+return{sets:b.sets,lo:b.lo+pl,hi:b.hi+pl,load:a[i]}}
 function finish(e,sets){sets=sets.filter(s=>s.w>0&&s.r>0);if(!sets.length)return;const p=presc(e);
 S.log.push({id:e.id,date:new Date().toISOString().slice(0,10),week:S.week,ph:phase(S.week),sets});
-const best=Math.max(...sets.map(s=>e1(s.w,s.r)));e.orm=+Math.max(e.orm*.95,best).toFixed(1);e.bonus=0;
-if(sets.length>=p.sets&&sets.every(s=>s.r>=p.hi&&s.w>=p.load)&&presc(e).load<=p.load)e.bonus=(e.iso?1.25:2.5)+p.load-presc({...e,bonus:0}).load;sv();}
+const best=Math.max(...sets.map(s=>e1(s.w,s.r)));e.orm=+Math.max(e.orm*.95,best).toFixed(1);e.bump=0;const a=avail(e),i0=snap(e,e.orm*base(e).pct),ip=idxOf(e,p.load);
+if(sets.length>=p.sets&&sets.every(s=>s.r>=p.hi&&s.w>=p.load-1e-9)){const nx=a[Math.min(a.length-1,ip+1)];
+if(nx/p.load-1>0.05&&(e.plus||0)<2&&phase(S.week)!='F'){e.plus=(e.plus||0)+1;e.bump=Math.max(0,ip-i0)}else{e.plus=0;e.bump=Math.max(0,ip+1-i0)}}
+else e.bump=0;sv();}
 function adv(d){S.week=Math.max(1,S.week+d);sv();W={};R()}
 // working state per exercise
 function ws(e){const p=presc(e);if(!W[e.id])W[e.id]=Array.from({length:p.sets},()=>({w:p.load,r:p.hi,ok:0}));return W[e.id]}
-function step(id,i,k,d){const s=ws(S.ex.find(x=>x.id==id))[i];s[k]=Math.max(0,+(s[k]+d).toFixed(2));R()}
+function step(id,i,k,d){const e=S.ex.find(x=>x.id==id),s=ws(e)[i];if(k=='w'){const a=avail(e);s.w=a[Math.max(0,Math.min(a.length-1,idxOf(e,s.w)+Math.sign(d)))]}else s[k]=Math.max(0,s[k]+d);R()}
 function ck(id,i){const s=ws(S.ex.find(x=>x.id==id))[i];s.ok=!s.ok;if(s.ok){navigator.vibrate&&navigator.vibrate(30);tStart(S.ex.find(x=>x.id==id).iso?90:phase(S.week)=='F'?180:120)}R()}
 function fin(id){const e=S.ex.find(x=>x.id==id),s=ws(e).filter(x=>x.ok);if(!s.length)return alert('Coche au moins une série');
 finish(e,s.map(x=>({w:x.w,r:x.r,rir:null})));delete W[id];toast('Enregistré · prochaine charge '+presc(e).load+' kg');R()}
@@ -75,7 +89,7 @@ document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.v
 m.innerHTML={day,hist,prog,set}[V]()}
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{V=b.dataset.v;R();scrollTo(0,0)});
 function day(){const L=S.ex.filter(e=>e.day==D);if(!L.length)return`<div class="card empty">Aucun exercice pour ${S.days[D]}.<br><button class="btn" onclick="V='set';R()">Ajouter des exercices</button></div>`;
-return L.map(e=>{const p=presc(e),w=ws(e);return`<div class="card"><h3>${e.name}</h3><div class="sub">1RM estimé ${e.orm} kg · ${e.iso?'isolation':'polyarticulaire'} ${e.unit}</div>
+return L.map(e=>{const p=presc(e),w=ws(e);return`<div class="card"><h3>${e.name}</h3><div class="sub">1RM estimé ${e.orm} kg · ${e.iso?'isolation':'polyarticulaire'} · ${e.lt=='machine'?PRE[e.pre]:e.lt=='halt'?'haltères':'barre'} ${e.unit}</div>
 <div class="tgt"><b>${p.sets}×${p.lo}-${p.hi}</b><span>@ ${p.load} kg</span></div>
 ${w.map((s,i)=>`<div class="set ${s.ok?'done':''}"><div class="n">${i+1}</div>
 <div class="st"><button onclick="step('${e.id}',${i},'w',-2.5)">−</button><div>${s.w}<small>kg</small></div><button onclick="step('${e.id}',${i},'w',2.5)">+</button></div>
@@ -99,12 +113,15 @@ function set(){return`<div class="card"><h3>Cycle</h3><div class="lbl">Date de d
 <div class="card"><h3>Exercices</h3>${S.ex.map(e=>`<div style="border-top:1px solid var(--line);padding:10px 0;margin-top:8px"><input value="${e.name}" onchange="ed('${e.id}','name',this.value)">
 <div class="row"><div style="flex:1"><div class="lbl">1RM (kg)</div><input type="number" value="${e.orm}" onchange="ed('${e.id}','orm',+this.value)"></div>
 <div style="flex:1"><div class="lbl">Jour</div><select onchange="ed('${e.id}','day',+this.value)">${S.days.map((d,i)=>`<option value="${i}" ${i==e.day?'selected':''}>${d}</option>`).join('')}</select></div></div>
+<div class="row"><div style="flex:1"><div class="lbl">Type de charge</div><select onchange="ed('${e.id}','lt',this.value)">${[['barre','Barre'],['halt','Haltères'],['machine','Machine / poulie']].map(([v,l])=>`<option value="${v}" ${e.lt==v?'selected':''}>${l}</option>`).join('')}</select></div>
+<div style="flex:1"><div class="lbl">${e.lt=='machine'?'Pile':'Pas (kg)'}</div>${e.lt=='machine'?`<select onchange="ed('${e.id}','pre',this.value)">${Object.entries(PRE).map(([v,l])=>`<option value="${v}" ${e.pre==v?'selected':''}>${l}</option>`).join('')}</select>`:`<select onchange="ed('${e.id}','wstep',+this.value)">${[1,1.25,2,2.5,5].map(v=>`<option ${+e.wstep==v?'selected':''}>${v}</option>`).join('')}</select>`}</div></div>
+${e.lt=='machine'&&e.pre=='cus'?`<div class="lbl">Charges de la pile (séparées par des virgules)</div><input value="${e.vals||''}" placeholder="5, 10, 15, 20…" onchange="ed('${e.id}','vals',this.value)">`:''}
 <div class="row"><label style="flex:1"><input type="checkbox" style="width:auto" ${e.iso?'checked':''} onchange="ed('${e.id}','iso',this.checked?1:0)"> Isolation</label><button class="wb" style="width:auto;padding:0 14px" onclick="if(confirm('Supprimer ?')){S.ex=S.ex.filter(x=>x.id!='${e.id}');sv();R()}">🗑 Supprimer</button></div></div>`).join('')}</div>
 <div class="card"><h3>Ajouter un exercice</h3><input id="nn" placeholder="Nom" style="margin-top:8px"><div class="row"><input id="nw" type="number" placeholder="Charge kg"><input id="nr" type="number" placeholder="Reps"></div>
 <div class="row"><select id="nd">${S.days.map((d,i)=>`<option value="${i}" ${i==D?'selected':''}>${d}</option>`).join('')}</select><label style="flex:none"><input id="ni" type="checkbox" style="width:auto"> Isolation</label></div><button class="btn" onclick="add()">Ajouter</button></div>
 <div class="card"><h3>Sauvegarde</h3><div class="row"><button class="btn g" onclick="exp()">Exporter JSON</button><button class="btn g" onclick="fi.click()">Importer</button></div><input type="file" id="fi" hidden accept=".json,application/json" onchange="imp(this)"></div>`}
 function ed(id,k,v){S.ex.find(x=>x.id==id)[k]=v;delete W[id];sv();R()}
-function add(){const n=nn.value.trim();if(!n)return;S.ex.push({id:uid(),name:n,orm:+e1(+nw.value||0,+nr.value||1).toFixed(1),iso:ni.checked?1:0,unit:'',day:+nd.value,bonus:0});sv();toast('Exercice ajouté');R()}
+function add(){const n=nn.value.trim();if(!n)return;const e={id:uid(),name:n,orm:+e1(+nw.value||0,+nr.value||1).toFixed(1),iso:ni.checked?1:0,unit:'',day:+nd.value};norm(e);S.ex.push(e);sv();toast('Exercice ajouté');R()}
 function exp(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)],{type:'application/json'}));a.download='muscu-backup.json';a.click()}
 function imp(i){i.files[0].text().then(t=>{S=JSON.parse(t);S.log=S.log||[];migrate();sv();W={};toast('Importé');R()})}
 R();if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
