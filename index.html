@@ -43,7 +43,10 @@ const K='muscu_v1',r25=x=>Math.round(x/2.5)*2.5,e1=(w,r)=>w*(1+r/30),uid=()=>Mat
 function def(){const ex=(n,w,r,iso,u)=>({id:uid(),name:n,orm:+e1(w,r).toFixed(1),iso,unit:u||'',day:0,bonus:0});
 return{start:new Date().toISOString().slice(0,10),week:1,days:['Pecs','Dos','Épaules','Bras','Jambes'],ex:[ex('Développé couché barre',100,4),ex('Développé incliné barre',70,7),ex('Presse inclinée guidée (machine)',109,10,0,'(aussi 4×16 à 86 kg)'),ex('Développé couché haltères',37.5,7,0,'kg/main'),ex('Écarté poulie vis-à-vis',20,10,1,'kg/côté'),ex('Pec deck',67.5,8,1)],log:[]}}
 let S=JSON.parse(localStorage.getItem(K)||'null')||def(),D=0,V='day',W={};
-S.log=S.log||[];S.ex.forEach(e=>{e.bonus=e.bonus||0;e.unit=e.unit||''});
+S.log=S.log||[];
+const MIG={2:[['Tirage assis poulie prise serrée',80,10,0,'Dos'],['Tirage assis poulie prise moyenne',75,10,0,'Dos'],['Tirage assis poulie prise large',70,10,0,'Dos']]};
+function migrate(){const v=S.dv||1;Object.keys(MIG).map(Number).sort().forEach(n=>{if(n<=v)return;MIG[n].forEach(([nm,w,r,iso,dn])=>{if(S.ex.some(e=>e.name==nm))return;let d=S.days.indexOf(dn);if(d<0)d=1;S.ex.push({id:uid(),name:nm,orm:+e1(w,r).toFixed(1),iso,unit:'',day:d,bonus:0})})});S.dv=Math.max(v,...Object.keys(MIG).map(Number));localStorage.setItem(K,JSON.stringify(S))}
+migrate();S.ex.forEach(e=>{e.bonus=e.bonus||0;e.unit=e.unit||''});
 const sv=()=>localStorage.setItem(K,JSON.stringify(S));
 const phase=w=>((w-1)%3)<2?'H':'F';
 function presc(e,w){w=w||S.week;if(phase(w)==='F')return{sets:4,lo:3,hi:5,load:r25(e.orm*.86+e.bonus)};
@@ -103,6 +106,6 @@ function set(){return`<div class="card"><h3>Cycle</h3><div class="lbl">Date de d
 function ed(id,k,v){S.ex.find(x=>x.id==id)[k]=v;delete W[id];sv();R()}
 function add(){const n=nn.value.trim();if(!n)return;S.ex.push({id:uid(),name:n,orm:+e1(+nw.value||0,+nr.value||1).toFixed(1),iso:ni.checked?1:0,unit:'',day:+nd.value,bonus:0});sv();toast('Exercice ajouté');R()}
 function exp(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)],{type:'application/json'}));a.download='muscu-backup.json';a.click()}
-function imp(i){i.files[0].text().then(t=>{S=JSON.parse(t);sv();W={};toast('Importé');R()})}
+function imp(i){i.files[0].text().then(t=>{S=JSON.parse(t);S.log=S.log||[];migrate();sv();W={};toast('Importé');R()})}
 R();if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script></body></html>
