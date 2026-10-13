@@ -1,0 +1,46 @@
+<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Muscu</title>
+<style>
+body{margin:0;font-family:system-ui,sans-serif;background:#111;color:#eee}header{padding:14px;background:#1c1c1c;position:sticky;top:0}
+h1{margin:0;font-size:20px}.ph{font-size:15px;color:#7fd}.ph.f{color:#f96}nav{display:flex;overflow-x:auto;gap:6px;padding:8px}
+button{background:#2a2a2a;color:#eee;border:1px solid #444;border-radius:10px;padding:12px 14px;font-size:16px;min-height:46px}
+button.on,.p{background:#0a7;border-color:#0a7}input,select{background:#222;color:#eee;border:1px solid #444;border-radius:8px;padding:10px;font-size:16px;width:70px}
+.c{background:#1c1c1c;margin:8px;padding:12px;border-radius:12px}.c h3{margin:0 0 4px}.s{color:#aaa;font-size:14px}.r{display:flex;gap:6px;align-items:center;margin:6px 0;flex-wrap:wrap}
+.w{width:100%;box-sizing:border-box}</style></head><body>
+<header><h1>💪 Muscu</h1><div id="ph" class="ph"></div><div class="r"><button onclick="adv(-1)">◀ Sem.</button><button onclick="adv(1)">Sem. suivante ▶</button><button onclick="V='hist';R()">Historique</button><button onclick="V='set';R()">⚙️</button></div></header>
+<nav id="nav"></nav><main id="m"></main>
+<script>
+const K='muscu_v1',r25=x=>Math.round(x/2.5)*2.5,e1=(w,r)=>w*(1+r/30);
+function def(){const ex=(n,w,r,iso,u)=>({id:Math.random().toString(36).slice(2),name:n,orm:+e1(w,r).toFixed(1),iso,unit:u||'',day:0,bonus:0});
+return{start:new Date().toISOString().slice(0,10),week:1,days:['Pecs','Dos','Épaules','Bras','Jambes'],ex:[ex('Développé couché barre',100,4),ex('Développé incliné barre',70,7),ex('Presse inclinée guidée (machine)',109,10,0,'(aussi 4×16 à 86 kg)'),ex('Développé couché haltères',37.5,7,0,'kg/main'),ex('Écarté poulie vis-à-vis',20,10,1,'kg/côté'),ex('Pec deck',67.5,8,1)],log:[]}}
+let S=JSON.parse(localStorage.getItem(K)||'null')||def(),D=0,V='day';const sv=()=>localStorage.setItem(K,JSON.stringify(S));
+const phase=w=>((w-1)%3)<2?'H':'F';
+function presc(e,w){w=w||S.week;if(phase(w)==='F')return{sets:4,lo:3,hi:5,load:r25(e.orm*.86+e.bonus)};
+return e.iso?{sets:3,lo:12,hi:15,load:r25(e.orm*.65+e.bonus)}:{sets:4,lo:10,hi:12,load:r25(e.orm*.72+e.bonus)}}
+function finish(e,sets){/*sets:[{w,r,rir}]*/sets=sets.filter(s=>s.w>0&&s.r>0);if(!sets.length)return;const p=presc(e);
+S.log.push({id:e.id,date:new Date().toISOString().slice(0,10),week:S.week,ph:phase(S.week),sets});
+const best=Math.max(...sets.map(s=>e1(s.w,s.r)));const old=e.orm;e.orm=+Math.max(e.orm*.95,best).toFixed(1);e.bonus=0;
+if(sets.length>=p.sets&&sets.every(s=>s.r>=p.hi&&s.w>=p.load)&&presc(e).load<=p.load)e.bonus=(e.iso?1.25:2.5)+p.load-presc({...e,bonus:0}).load;sv();}
+function adv(d){S.week=Math.max(1,S.week+d);sv();R()}
+function R(){const f=phase(S.week)==='F',c=Math.ceil(S.week/3);ph.className='ph'+(f?' f':'');
+ph.textContent=`Cycle ${c} · Semaine ${S.week} (${(S.week-1)%3+1}/3) · ${f?'LOURD / Force':'Hypertrophie'} · début ${S.start}`;
+nav.innerHTML=S.days.map((d,i)=>`<button class="${V=='day'&&i==D?'on':''}" onclick="D=${i};V='day';R()">${d}</button>`).join('');
+m.innerHTML=V=='day'?day():V=='hist'?hist():set()}
+function day(){const L=S.ex.filter(e=>e.day==D);if(!L.length)return'<div class="c">Aucun exercice. Ajoute-les dans ⚙️.</div>';
+return L.map(e=>{const p=presc(e);let rows='';for(let i=0;i<p.sets;i++)rows+=`<div class="r">S${i+1} <input type="number" step="0.5" id="w${e.id}${i}" value="${p.load}"> kg <input type="number" id="r${e.id}${i}" placeholder="${p.lo}-${p.hi}"> reps <input type="number" id="i${e.id}${i}" placeholder="RIR" style="width:55px"></div>`;
+return`<div class="c"><h3>${e.name}</h3><div class="s">1RM est. ${e.orm} kg ${e.unit} · ${e.iso?'isolation':'polyarticulaire'}</div><b>${p.sets} × ${p.lo}-${p.hi} à ${p.load} kg</b>${rows}<button class="p w" onclick="fin('${e.id}',${p.sets})">✅ Valider</button></div>`}).join('')}
+function fin(id,n){const e=S.ex.find(x=>x.id==id),s=[];for(let i=0;i<n;i++){const g=k=>+document.getElementById(k+id+i).value||0;s.push({w:g('w'),r:g('r'),rir:document.getElementById('i'+id+i).value||null})}
+finish(e,s);alert('Enregistré ! Prochaine charge : '+presc(e).load+' kg');R()}
+function hist(){return S.ex.map(e=>{const l=S.log.filter(x=>x.id==e.id).slice().reverse();return`<div class="c"><h3>${e.name}</h3>${l.map(x=>`<div class="s">${x.date} · S${x.week} ${x.ph=='F'?'Force':'Hyp.'} : ${x.sets.map(s=>s.w+'×'+s.r+(s.rir?'@'+s.rir:'')).join(', ')}</div>`).join('')||'<div class="s">—</div>'}</div>`}).join('')}
+function set(){return`<div class="c"><h3>Jours</h3>${S.days.map((d,i)=>`<input class="w" value="${d}" onchange="S.days[${i}]=this.value;sv();R()">`).join('')}
+<div class="r">Date début <input type="date" style="width:auto" value="${S.start}" onchange="S.start=this.value;sv()"> Semaine <input type="number" value="${S.week}" onchange="S.week=+this.value||1;sv();R()"></div></div>
+${S.ex.map(e=>`<div class="c"><input class="w" value="${e.name}" onchange="ed('${e.id}','name',this.value)"><div class="r">1RM <input type="number" value="${e.orm}" onchange="ed('${e.id}','orm',+this.value)">
+<select style="width:auto" onchange="ed('${e.id}','day',+this.value)">${S.days.map((d,i)=>`<option value="${i}" ${i==e.day?'selected':''}>${d}</option>`).join('')}</select>
+<label><input type="checkbox" style="width:auto" ${e.iso?'checked':''} onchange="ed('${e.id}','iso',this.checked?1:0)"> isolation</label><button onclick="if(confirm('Supprimer ?')){S.ex=S.ex.filter(x=>x.id!='${e.id}');sv();R()}">🗑</button></div></div>`).join('')}
+<div class="c"><h3>Ajouter</h3><input class="w" id="nn" placeholder="Nom"><div class="r"><input id="nw" type="number" placeholder="kg"> × <input id="nr" type="number" placeholder="reps"><label><input id="ni" type="checkbox" style="width:auto"> isolation</label></div><button class="p w" onclick="add()">Ajouter à ${S.days[D]}</button></div>
+<div class="c"><h3>Sauvegarde</h3><button onclick="exp()">Exporter JSON</button> <button onclick="fi.click()">Importer</button><input type="file" id="fi" hidden onchange="imp(this)"></div>`}
+function ed(id,k,v){S.ex.find(x=>x.id==id)[k]=v;sv();R()}
+function add(){const n=nn.value.trim();if(!n)return;S.ex.push({id:Math.random().toString(36).slice(2),name:n,orm:+e1(+nw.value||0,+nr.value||1).toFixed(1),iso:ni.checked?1:0,unit:'',day:D,bonus:0});sv();R()}
+function exp(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)]));a.download='muscu-backup.json';a.click()}
+function imp(i){i.files[0].text().then(t=>{S=JSON.parse(t);sv();R()})}
+R();
+</script></body></html>
